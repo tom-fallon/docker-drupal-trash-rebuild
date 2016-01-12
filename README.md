@@ -132,3 +132,17 @@ Authors of image: Sam Stoelinga, Frank Sachsenheim, Eric Rasche
 Source code: [https://github.com/samos123/docker-drupal](https://github.com/samos123/docker-drupal)
 
 Registry url: [https://registry.hub.docker.com/u/samos123/drupal/](https://registry.hub.docker.com/u/samos123/drupal/)
+
+
+## Short commands to start Server
+    docker stop drupal-site && docker rm drupal-site && docker stop db && docker rm db && docker stop router && docker rm router
+
+    docker build -t docker-drupal-contrib  --build-arg APP_REPO=git@bitbucket.org:tom-fallon/free-paragraphs.git --no-cache .
+
+    docker run -d -p 80:80 -v /var/run/docker.sock:/tmp/docker.sock:ro --name router jwilder/nginx-proxy
+
+    docker run -d -e MYSQL_ROOT_PASSWORD="test123" --name db mysql
+
+    docker run -d  --link db:mysql --env APP_BRANCH=develop3 --env VIRTUAL_HOST=test.docker.local --name drupal-site --env BASE_URL=http://test.docker.local --expose 80-80 docker-drupal-contrib
+
+    docker exec -it drupal-site bash

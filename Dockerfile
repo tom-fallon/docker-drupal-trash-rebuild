@@ -1,7 +1,9 @@
-FROM php:apache
+FROM php:5.6-apache
 MAINTAINER Sam Stoelinga <sammiestoel@gmail.com>
 
 ENTRYPOINT ["/entrypoint.sh"]
+
+RUN apt-get update && apt-get install nano
 
 # Provide compatibility for images depending on previous versions
 RUN ln -s /var/www/html /app
@@ -34,14 +36,40 @@ RUN apt-get -q update \
 # Download Drupal from ftp.drupal.org
 ENV DRUPAL_VERSION=7.41
 ENV DRUPAL_TARBALL_MD5=7636e75e8be213455b4ac7911ce5801f
-WORKDIR /var/www
-RUN rm -R html \
- && curl -OsS http://ftp.drupal.org/files/projects/drupal-${DRUPAL_VERSION}.tar.gz \
- && echo "${DRUPAL_TARBALL_MD5}  drupal-${DRUPAL_VERSION}.tar.gz" | md5sum -c \
- && tar -xf drupal-${DRUPAL_VERSION}.tar.gz && rm drupal-${DRUPAL_VERSION}.tar.gz \
- && mv drupal-${DRUPAL_VERSION} html \
- && cd html \
- && rm [A-Z]*.txt install.php web.config sites/default/default.settings.php
+
+WORKDIR /var/www/html
+
+# Update aptitude with new repo
+RUN apt-get update
+
+# Install software
+RUN apt-get install -y git
+# Make ssh dir
+RUN mkdir /root/.ssh/
+
+# Copy over private key, and set permissions
+ADD ssh/id_rsa /root/.ssh/id_rsa
+ADD ssh/config ssh/config
+WORKDIR /root/.ssh/
+RUN chmod 600 *
+
+
+# Create known_hosts
+RUN touch /root/.ssh/known_hosts
+# Add bitbuckets key
+RUN ssh-keyscan bitbucket.org >> /root/.ssh/known_hosts
+RUN ssh-keygen -R bitbucket.com
+
+ARG APP_REPO=local
+ENV APP_REPO ${APP_REPO}
+
+WORKDIR /var/www/html
+RUN rm * -rf \
+&& git clone ${APP_REPO} . \
+&& chown -R www-data:www-data *
+
+WORKDIR /var/www/html
+RUN ls
 
 # Install composer and drush by using composer
 ENV COMPOSER_BIN_DIR=/usr/local/bin
@@ -54,9 +82,9 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 ADD php-conf.d/ $PHP_INI_DIR/conf.d/
 
 # copy sites/default's defaults
-WORKDIR html
+WORKDIR /var/www/html
 ADD sites/ sites/
-
+RUN ls
 # Add README.md, entrypoint-script and scripts-folder
 ADD entrypoint.sh README.md  /
 ADD /scripts/ /scripts/
